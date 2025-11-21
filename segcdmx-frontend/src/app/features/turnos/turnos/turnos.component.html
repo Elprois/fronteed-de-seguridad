@@ -1,0 +1,51 @@
+<div class="page-container turnos">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Asignación de Turnos y Equipo</h2>
+      <p class="subtitle">Arrastra turnos al calendario para asignarlos al personal disponible.</p>
+    </div>
+  </div>
+
+  <div class="turnos-grid">
+    <app-card heading="Octubre 2024" subtitle="Calendario general">
+      <div class="calendar">
+        <div
+          class="calendar__day"
+          *ngFor="let day of days"
+          [class.calendar__day--selected]="day === selectedDate"
+          (click)="assignToDay(day)"
+        >
+          <span>{{ day }}</span>
+          <small *ngIf="day === selectedDate && selectedTurnoId">
+            Turno {{ selectedTurnoId }}
+          </small>
+        </div>
+      </div>
+    </app-card>
+
+    <div class="turnos-sidebar">
+      <app-card heading="Guardias Disponibles">
+        <input class="search" placeholder="Filtrar por nombre o certificación" />
+        <ul class="guardias">
+          <li *ngFor="let guardia of guardiasDisponibles">
+            <span>{{ guardia.nombre }}</span>
+            <small>{{ guardia.estado }}</small>
+          </li>
+        </ul>
+      </app-card>
+
+      <app-card heading="Turnos por Asignar">
+        <ul class="turnos-list">
+          <li
+            *ngFor="let turno of turnos"
+            (click)="selectTurno(turno.id)"
+            [class.active]="turno.id === selectedTurnoId"
+          >
+            <p>{{ turno.titulo }} - {{ turno.zona }}</p>
+            <span>{{ turno.inicio | date: 'HH:mm' }} - {{ turno.fin | date: 'HH:mm' }}</span>
+          </li>
+        </ul>
+      </app-card>
+    </div>
+  </div>
+</div>

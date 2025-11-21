@@ -1,0 +1,71 @@
+<div class="page-container personal-nuevo">
+  <h2 class="page-title">Agregar Nuevo Guardia</h2>
+  <p class="subtitle">Escanea un documento para empezar.</p>
+
+  <app-card>
+    <div class="scan-box">
+      <div class="scan-box__frame">Posiciona el documento dentro del marco</div>
+      <div class="scan-box__actions">
+        <app-primary-button label="Iniciar Escaneo" (click)="iniciarEscaneo()" />
+        <button type="button" class="text-link" (click)="mostrarFormulario()">
+          Ingresar datos manualmente
+        </button>
+      </div>
+    </div>
+  </app-card>
+
+  <app-card *ngIf="showManualForm">
+    <form class="manual-form" [formGroup]="guardiaForm" (ngSubmit)="registrar()">
+      <label>
+        <span>Nombre completo</span>
+        <input type="text" formControlName="nombre" placeholder="Nombre y apellidos" />
+      </label>
+      <label>
+        <span>Email</span>
+        <input type="email" formControlName="email" placeholder="correo@segcdmx.mx" />
+      </label>
+      <label>
+        <span>Rol</span>
+        <select formControlName="rol">
+          <option>Guardia</option>
+          <option>Supervisor</option>
+          <option>Operador</option>
+        </select>
+      </label>
+      <label>
+        <span>Certificaciones</span>
+        <input
+          type="text"
+          formControlName="certificaciones"
+          placeholder="Separe con comas (CPR, IA, Drones)"
+        />
+      </label>
+      <label>
+        <span>Estado</span>
+        <select formControlName="estado">
+          <option>Activo</option>
+          <option>Inactivo</option>
+        </select>
+      </label>
+
+      <div class="form-actions">
+        <app-primary-button type="submit" label="Registrar Guardia" />
+        <app-secondary-button type="button" label="Cancelar" (click)="cerrarModal()" />
+      </div>
+    </form>
+  </app-card>
+</div>
+
+<app-modal
+  [isOpen]="showModal"
+  [title]="'¡Registro Exitoso!'"
+  [description]="
+    'El perfil para ' + lastNameCreated + ' ha sido creado y agregado a la lista de personal.'
+  "
+  (closed)="cerrarModal()"
+>
+  <div class="modal-buttons">
+    <app-primary-button label="Ver perfil del nuevo guardia" [fullWidth]="true" (click)="cerrarModal()" />
+    <app-secondary-button label="Finalizar" [fullWidth]="true" (click)="cerrarModal()" />
+  </div>
+</app-modal>
