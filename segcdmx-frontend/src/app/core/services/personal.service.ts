@@ -1,65 +1,119 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { forkJoin, Observable, of } from 'rxjs';
+import { map, mergeMap } from 'rxjs/operators';
 
 import { Usuario } from '../models/usuario.model';
+import { ApiService } from './api.service';
+
+// Backend API models
+interface UsuarioApi {
+  id_usuario: number;
+  id_rol: number;
+  username: string;
+  password_hash: string;
+  nombre: string;
+  apellido: string;
+  estado: 'Activo' | 'Inactivo';
+}
+
+interface RolApi {
+  id_rol: number;
+  nombre_rol: string;
+}
+
+interface GuardiaCertificacionApi {
+    id_guardia_certificacion: number;
+    id_usuario: number;
+    id_certificacion: number;
+}
+
+interface CertificacionApi {
+    id_certificacion: number;
+    nombre_certificacion: string;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class PersonalService {
-  private readonly personalSubject = new BehaviorSubject<Usuario[]>([
-    {
-      id_usuario: 1,
-      nombre: 'María Camacho',
-      email: 'mcamacho@segcdmx.mx',
-      rol: 'Supervisora',
-      estado: 'Activo',
-      certificaciones: ['DRON', 'IA'],
-    },
-    {
-      id_usuario: 2,
-      nombre: 'Luis Pérez',
-      email: 'lperez@segcdmx.mx',
-      rol: 'Guardia',
-      estado: 'Activo',
-      certificaciones: ['CPR'],
-    },
-    {
-      id_usuario: 3,
-      nombre: 'Ana Torres',
-      email: 'atorres@segcdmx.mx',
-      rol: 'Guardia',
-      estado: 'Inactivo',
-      certificaciones: ['Primeros auxilios'],
-    },
-  ]);
+  constructor(private api: ApiService) {}
+
+  private mapFromApi(api: UsuarioApi, rol?: RolApi, certificaciones?: CertificacionApi[]): Usuario {
+    return {
+      id_usuario: api.id_usuario,
+      nombre: `${api.nombre} ${api.apellido}`,
+      email: `${api.username.toLowerCase()}@segcdmx.mx`,
+      rol: rol?.nombre_rol ?? 'Desconocido',
+      estado: api.estado,
+      certificaciones: certificaciones?.map(c => c.nombre_certificacion) ?? [],
+    };
+  }
+
+  private mapToApi(model: Partial<Usuario>): Partial<UsuarioApi> {
+    const [nombre, ...apellidoParts] = (model.nombre ?? '').split(' ');
+    return {
+      nombre: nombre,
+      apellido: apellidoParts.join(' '),
+      estado: model.estado,
+      id_rol: 3, // Placeholder for 'Guardia'
+      username: model.email?.split('@')[0],
+    };
+  }
 
   getAll(): Observable<Usuario[]> {
-    return this.personalSubject.asObservable().pipe(delay(150));
+    return this.api.get<UsuarioApi[]>('usuarios').pipe(
+      mergeMap(apiUsuarios => {
+        if (apiUsuarios.length === 0) {
+          return of([]);
+        }
+        const calls = apiUsuarios.map(usuario =>
+          forkJoin({
+            usuario: of(usuario),
+            rol: this.api.get<RolApi>(`rols/${usuario.id_rol}`),
+            // This is a complex join, for simplicity we will mock it for now
+            // A real implementation would need a dedicated backend endpoint
+            certificaciones: of([{id_certificacion: 1, nombre_certificacion: 'IA'}] as CertificacionApi[])
+          })
+        );
+        return forkJoin(calls);
+      }),
+      map(results => results.map(result => this.mapFromApi(result.usuario, result.rol, result.certificaciones)))
+    );
   }
 
   getById(id: number): Observable<Usuario | undefined> {
-    return this.getAll().pipe(map((list) => list.find((user) => user.id_usuario === id)));
+    return this.api.get<UsuarioApi>(`usuarios/${id}`).pipe(
+      mergeMap(apiUsuario => {
+        if (!apiUsuario) {
+          return of(undefined);
+        }
+        return forkJoin({
+            usuario: of(apiUsuario),
+            rol: this.api.get<RolApi>(`rols/${apiUsuario.id_rol}`),
+            certificaciones: of([{id_certificacion: 1, nombre_certificacion: 'IA'}] as CertificacionApi[])
+        }).pipe(
+            map(result => this.mapFromApi(result.usuario, result.rol, result.certificaciones))
+        )
+      })
+    );
   }
 
   create(payload: Usuario): Observable<Usuario> {
-    const current = this.personalSubject.value;
-    this.personalSubject.next([...current, payload]);
-    return of(payload).pipe(delay(200));
+    const apiPayload = this.mapToApi(payload);
+    Object.assign(apiPayload, { password_hash: 'temp-password' });
+    return this.api.post<UsuarioApi>('usuarios', apiPayload).pipe(
+      map(apiUsuario => this.mapFromApi(apiUsuario))
+    );
   }
 
-  update(id: number, changes: Partial<Usuario>): Observable<Usuario | undefined> {
-    const updated = this.personalSubject.value.map((user) =>
-      user.id_usuario === id ? { ...user, ...changes } : user,
+  update(id: number, changes: Partial<Usuario>): Observable<Usuario> {
+    const apiChanges = this.mapToApi(changes);
+    return this.api.put<UsuarioApi>(`usuarios/${id}`, apiChanges).pipe(
+      map(apiUsuario => this.mapFromApi(apiUsuario))
     );
-    this.personalSubject.next(updated);
-    return this.getById(id);
   }
 
-  filterByStatus(status: Usuario['estado'] | 'Todos'): Observable<Usuario[]> {
-    return this.getAll().pipe(
-      map((list) => (status === 'Todos' ? list : list.filter((user) => user.estado === status))),
-    );
+  delete(id: number): Observable<void> {
+    return this.api.delete<void>(`usuarios/${id}`);
   }
 }

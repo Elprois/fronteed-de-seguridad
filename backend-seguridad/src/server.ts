@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { setupSwagger } from './infrastructure/web/swagger';
 import { SupabaseRolRepository } from './infrastructure/data/rol/supabase-rol.repository';
 import { CreateRol } from './application/use-cases/rol/create-rol';
@@ -108,6 +109,7 @@ import { guardiaCertificacionRouter } from './infrastructure/web/guardia-certifi
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 // Repositories
 const rolRepository = new SupabaseRolRepository();
